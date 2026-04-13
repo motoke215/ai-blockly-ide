@@ -176,13 +176,14 @@ export function ModelSettings({ onClose }: ModelSettingsProps) {
                     {/* Select as active */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           // Auto-select recommended model if none selected yet
                           if (!cfg.selectedModels[provider.id]) {
                             const recommended = provider.models.find(m => m.recommended)?.id || provider.models[0]?.id
-                            if (recommended) selectModel(provider.id, recommended)
+                            if (recommended) await selectModel(provider.id, recommended)
                           }
-                          selectProvider(provider.id);
+                          await selectProvider(provider.id);
+                          onClose();
                         }}
                         disabled={isActive}
                         style={{

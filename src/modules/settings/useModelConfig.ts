@@ -38,16 +38,18 @@ export function useModelConfig() {
   // ── Actions ────────────────────────────────────────────────────────────
 
   const selectProvider = useCallback(async (providerId: string) => {
-    await store().setSelectedProvider(providerId);
+    // Optimistic update first for instant UI feedback
     setCfg(prev => ({ ...prev, selectedProviderId: providerId }));
+    await store().setSelectedProvider(providerId);
   }, []);
 
   const selectModel = useCallback(async (providerId: string, modelId: string) => {
-    await store().setSelectedModel(providerId, modelId);
+    // Optimistic update first for instant UI feedback
     setCfg(prev => ({
       ...prev,
       selectedModels: { ...prev.selectedModels, [providerId]: modelId },
     }));
+    await store().setSelectedModel(providerId, modelId);
   }, []);
 
   const saveKey = useCallback(async (providerId: string, key: string) => {
