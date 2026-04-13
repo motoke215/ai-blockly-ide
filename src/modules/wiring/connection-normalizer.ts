@@ -1,6 +1,45 @@
 import type { AIProjectSchema, Component, Connection, PinDefinition } from '../../shared/types/project.schema'
 
 type WireColor = NonNullable<Connection['wireColor']>
+
+// 电源管理链路标准元件定义（当检测到电池/供电产品需求时自动注入）
+const STANDARD_POWER_CHAIN: Omit<Component, 'id' | 'position'>[] = [
+  {
+    type: 'power',
+    label: '锂电池',
+    model: '3.7V LiPo',
+    pins: [
+      { name: 'VBAT+', type: 'power' },
+      { name: 'VBAT-', type: 'ground' },
+    ],
+  },
+  {
+    type: 'power',
+    label: '充电管理',
+    model: 'TP4056',
+    pins: [
+      { name: 'VBAT+', type: 'power' },
+      { name: 'OUT+', type: 'power' },
+      { name: 'GND', type: 'ground' },
+    ],
+  },
+  {
+    type: 'power',
+    label: '稳压器',
+    model: 'AMS1117-3.3V',
+    pins: [
+      { name: 'VIN', type: 'power' },
+      { name: 'VOUT', type: 'power' },
+      { name: 'GND', type: 'ground' },
+    ],
+  },
+]
+
+let _powerCompIdCounter = 0
+function makePowerCompId() {
+  return `comp_power_${++_powerCompIdCounter}`
+}
+
 type PinMatcher = (pin: PinDefinition) => boolean
 
 const COLOR_BY_GROUP: Record<string, WireColor> = {
@@ -158,12 +197,13 @@ function mcuMatchersForPeripheralPin(pin: PinDefinition, peripheral: Component):
 }
 
 export function normalizeConnections(schema: AIProjectSchema): AIProjectSchema {
-  const mcu = schema.components.find(comp => comp.type === 'mcu')
-  if (!mcu) return schema
+  const mcuBase = schema.components.find(comp => comp.type === 'mcu')
+  if (!mcuBase) return schema
 
   const dedup = new Map<string, Connection>()
   let index = 1
   const planIdByKey = new Map<string, string>()
+  let mcu: Component = mcuBase
 
   const add = (source: Component, sourcePin: PinDefinition, target: Component, targetPin: PinDefinition, preferredColor?: WireColor, planId?: string) => {
     const key = makeKey(source.id, sourcePin.name, target.id, targetPin.name)
@@ -177,6 +217,56 @@ export function normalizeConnections(schema: AIProjectSchema): AIProjectSchema {
       wireColor: color,
       derivedFromPlanId: planIdByKey.get(key),
     })
+  }
+
+  // ── Step 1: 注入缺失的电源管理链路 ──
+  const hasPowerChain = schema.components.some(comp =>
+    comp.type === 'power' && /tp4056|ams1117|li(po|thium)|battery/i.test(comp.model)
+  )
+
+  if (!hasPowerChain) {
+    const batteryId = makePowerCompId()
+    const tp4056Id = makePowerCompId()
+    const ams1117Id = makePowerCompId()
+
+    const battery: Component = { ...STANDARD_POWER_CHAIN[0], id: batteryId }
+    const tp4056: Component = { ...STANDARD_POWER_CHAIN[1], id: tp4056Id }
+    const ams1117: Component = { ...STANDARD_POWER_CHAIN[2], id: ams1117Id }
+
+    // 电源链路内部连线: 电池→TP4056→AMS1117
+    const bVbatPos = battery.pins.find(p => p.name === 'VBAT+')!
+    const bVbatNeg = battery.pins.find(p => p.name === 'VBAT-')!
+    const tVbat = tp4056.pins.find(p => p.name === 'VBAT+')!
+    const tOut = tp4056.pins.find(p => p.name === 'OUT+')!
+    const tGnd = tp4056.pins.find(p => p.name === 'GND')!
+    const aVin = ams1117.pins.find(p => p.name === 'VIN')!
+    const aVout = ams1117.pins.find(p => p.name === 'VOUT')!
+    const aGnd = ams1117.pins.find(p => p.name === 'GND')!
+
+    add(battery, bVbatPos, tp4056, tVbat, 'red')
+    add(battery, bVbatNeg, tp4056, tGnd, 'black')
+    add(tp4056, tOut, ams1117, aVin, 'red')
+    add(tp4056, tGnd, ams1117, aGnd, 'black')
+
+    // 将注入的元件加入 schema（电池、TP4056、AMS1117 放在最前面）
+    const injected: Component[] = [battery, tp4056, ams1117]
+    schema = { ...schema, components: [...injected, ...schema.components] }
+
+    // 为 MCU 扩展 VOUT_AMS1117（主电源轨）/ GND_RAIL（共地）引脚
+    // 这样 auto-fill 会把其他元件的 VCC 接入这个电源轨
+    const mcuPowerPin: PinDefinition = { name: 'VOUT_AMS1117', type: 'power' }
+    const mcuGroundPin: PinDefinition = { name: 'GND_RAIL', type: 'ground' }
+    const mcuWithExtPower: Component = {
+      ...mcu,
+      pins: [...mcu.pins, mcuPowerPin, mcuGroundPin],
+    }
+    const updatedComponents = schema.components.map(c => c.id === mcu.id ? mcuWithExtPower : c)
+    schema = { ...schema, components: updatedComponents }
+    mcu = mcuWithExtPower
+
+    // AMS1117 VOUT/GND 正式作为 MCU 的外部电源接口
+    add(ams1117, aVout, mcu, mcuPowerPin, 'red')
+    add(ams1117, aGnd, mcu, mcuGroundPin, 'black')
   }
 
   for (const plan of schema.connectionPlan ?? []) {
