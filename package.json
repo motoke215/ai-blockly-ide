@@ -1,0 +1,78 @@
+{
+  "name": "ai-blockly-ide",
+  "version": "0.1.0",
+  "description": "AI-powered hardware development IDE",
+  "author": "AI Blockly Team",
+  "main": "out/main/main.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package": "electron-vite build && electron-builder",
+    "package:dir": "electron-vite build && electron-builder --dir"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "blockly": "^11.0.0",
+    "electron-store": "^8.2.0",
+    "electron-updater": "^6.8.3",
+    "immer": "^11.1.4",
+    "mitt": "^3.0.1",
+    "openai": "^4.47.0",
+    "reactflow": "^11.11.4",
+    "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "autoprefixer": "^10.4.19",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.4.5",
+    "vite": "^5.3.1"
+  },
+  "build": {
+    "appId": "com.aiblocklyide.app",
+    "productName": "AI-Blockly-IDE",
+    "copyright": "Copyright 2025",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "motoke215",
+      "repo": "ai-blockly-ide"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AI-Blockly-IDE",
+      "language": "2052",
+      "artifactName": "AI-Blockly-IDE-Setup-${version}.exe"
+    }
+  }
+}

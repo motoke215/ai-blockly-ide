@@ -1,0 +1,7 @@
+node_modules/
+release/*.exe
+release/*.blockmap
+release/builder-debug.yml
+out/
+*.log
+.DS_Store
