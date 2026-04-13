@@ -1,9 +1,10 @@
 // src/modules/wiring/PinConnectionCanvas.tsx
-// 引脚连接图：展示元器件引脚标签和具体接线的示意图（效果图风格）
-import React, { useMemo, useCallback } from 'react'
+// 引脚连接图：MCU居左纵向排列引脚，外设居右，引脚到引脚水平连线，电源线动态虚线
+import React, { useEffect } from 'react'
 import ReactFlow, { Background, BackgroundVariant, Controls, Panel,
-  type Node, type Edge, type NodeProps, useNodesState, useEdgesState,
-  Handle, Position, MarkerType } from 'reactflow'
+  type Node, type Edge, type NodeProps,
+  useNodesState, useEdgesState,
+  Handle, Position, MarkerType, ReactFlowProvider } from 'reactflow'
 import 'reactflow/dist/style.css'
 
 const WIRE_COLORS: Record<string, string> = {
@@ -14,152 +15,182 @@ const TYPE_COLORS: Record<string, string> = {
   mcu:'#00ff9d', sensor:'#00e5ff', actuator:'#ffd700', display:'#c084fc',
   power:'#ef4444', passive:'#5a7a9a', module:'#00e5ff',
 }
+const NODE_WIDTH = 130
+const PIN_ROW_H = 18
+const HEADER_H = 32
+const PAD = 6
+const MCU_X = 60
+const PERIPH_X = 430
 
-// ── 引脚节点 ────────────────────────────────────────────────────────────────
-function PinNode({ data }: NodeProps) {
+function pinColor(name: string, base: string) {
+  if (/VCC|3V3|5V/i.test(name)) return '#ef4444'
+  if (/GND/i.test(name)) return '#6b7280'
+  return base
+}
+
+// ── MCU 节点：所有引脚在右侧显示，右侧引出连线 ─────────────────
+function MCUNode({ data, id }: NodeProps) {
   const { label, model, type, pins } = data as {
-    label: string; model: string; type: string; pins: { name: string; gpioNum?: number }[]
+    label: string; model: string; type: string
+    pins: { name: string; gpioNum?: number }[]
   }
   const color = TYPE_COLORS[type] ?? '#00ff9d'
-  const half = Math.ceil(pins.length / 2)
 
   return (
     <div style={{
       background: '#0d1e33',
       border: `1.5px solid ${color}`,
       borderRadius: 6,
-      minWidth: 120,
+      width: NODE_WIDTH,
       fontFamily: '"JetBrains Mono",monospace',
-      boxShadow: `0 0 12px ${color}30`,
+      boxShadow: `0 0 16px ${color}30`,
     }}>
-      {/* Header */}
       <div style={{
         background: `${color}22`,
         borderBottom: `1px solid ${color}40`,
-        padding: '5px 10px',
+        padding: '4px 8px',
         borderRadius: '4px 4px 0 0',
+        height: HEADER_H,
+        display: 'flex', flexDirection: 'column', justifyContent: 'center',
       }}>
         <div style={{ fontSize: 9, fontWeight: 700, color, letterSpacing: '0.06em' }}>{label}</div>
-        <div style={{ fontSize: 7, color: '#5a7a9a', marginTop: 1 }}>{model}</div>
+        <div style={{ fontSize: 7, color: '#5a7a9a' }}>{model}</div>
       </div>
 
-      {/* Pins */}
-      <div style={{ display: 'flex', padding: '4px 0' }}>
-        {/* Left pins */}
-        <div style={{ flex: 1, padding: '2px 6px' }}>
-          {pins.slice(0, half).map((pin, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
-              <div style={{
-                width: 6, height: 6, borderRadius: '50%',
-                background: pin.name.match(/VCC|3V3|5V/i) ? '#ef4444'
-                         : pin.name.match(/GND/i) ? '#6b7280'
-                         : color,
-                flexShrink: 0,
-              }} />
-              <span style={{ fontSize: 7.5, color: '#e0e0e0', letterSpacing: '0.03em' }}>{pin.name}</span>
-              {pin.gpioNum !== undefined && (
-                <span style={{ fontSize: 6, color: '#5a7a9a' }}>GPIO{pin.gpioNum}</span>
-              )}
-            </div>
-          ))}
-        </div>
-        {/* Right pins */}
-        <div style={{ flex: 1, padding: '2px 6px' }}>
-          {pins.slice(half).map((pin, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3, justifyContent: 'flex-end' }}>
-              {pin.gpioNum !== undefined && (
-                <span style={{ fontSize: 6, color: '#5a7a9a' }}>GPIO{pin.gpioNum}</span>
-              )}
-              <span style={{ fontSize: 7.5, color: '#e0e0e0', letterSpacing: '0.03em' }}>{pin.name}</span>
-              <div style={{
-                width: 6, height: 6, borderRadius: '50%',
-                background: pin.name.match(/VCC|3V3|5V/i) ? '#ef4444'
-                         : pin.name.match(/GND/i) ? '#6b7280'
-                         : color,
-                flexShrink: 0,
-              }} />
-            </div>
-          ))}
-        </div>
+      <div style={{ padding: `${PAD}px ${PAD}px ${PAD}px 0` }}>
+        {pins.map((pin, i) => (
+          <div key={i}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', height: PIN_ROW_H, position: 'relative' }}>
+            <span style={{ fontSize: 7.5, color: '#e0e0e0', letterSpacing: '0.03em', zIndex: 1 }}>{pin.name}</span>
+            {pin.gpioNum !== undefined && (
+              <span style={{ fontSize: 6, color: '#5a7a9a', marginLeft: 3, zIndex: 1 }}>{pin.gpioNum}</span>
+            )}
+            {/* Source handle on right — used when MCU is connection source */}
+            <Handle
+              type="source"
+              position={Position.Right}
+              id={`src_${pin.name}`}
+              style={{
+                position: 'absolute', right: -3, top: '50%', transform: 'translateY(-50%)',
+                width: 7, height: 7,
+                background: pinColor(pin.name, color),
+                border: 'none', borderRadius: '50%',
+                boxShadow: `0 0 5px ${pinColor(pin.name, color)}80`,
+                zIndex: 2,
+              }}
+            />
+          </div>
+        ))}
       </div>
-
-      {/* Hidden ReactFlow handles (used for edge connections) */}
-      {pins.map((pin, i) => (
-        <React.Fragment key={`h_l_${i}`}>
-          <Handle
-            type="source"
-            position={Position.Left}
-            id={`l_${pin.name}`}
-            style={{ top: `${((i + 0.5) / pins.length) * 100}%`, background: color, border: 'none', width: 6, height: 6 }}
-          />
-          <Handle
-            type="target"
-            position={Position.Right}
-            id={`r_${pin.name}`}
-            style={{ top: `${((i + 0.5) / pins.length) * 100}%`, background: color, border: 'none', width: 6, height: 6 }}
-          />
-        </React.Fragment>
-      ))}
     </div>
   )
 }
 
-const NODE_TYPES = { pinNode: PinNode }
+// ── 外设节点：所有引脚在左侧显示，左侧引出连线 ─────────────────
+function PeripheralNode({ data }: NodeProps) {
+  const { label, model, type, pins } = data as {
+    label: string; model: string; type: string
+    pins: { name: string; gpioNum?: number }[]
+  }
+  const color = TYPE_COLORS[type] ?? '#00e5ff'
 
-// ── 自动布局 ──────────────────────────────────────────────────────────────
-function autoLayout(nodes: Node[], edges: Edge[]): { nodes: Node[]; edges: Edge[] } {
-  if (nodes.length === 0) return { nodes, edges }
+  return (
+    <div style={{
+      background: '#0d1e33',
+      border: `1.5px solid ${color}`,
+      borderRadius: 6,
+      width: NODE_WIDTH,
+      fontFamily: '"JetBrains Mono",monospace',
+      boxShadow: `0 0 16px ${color}30`,
+    }}>
+      <div style={{
+        background: `${color}22`,
+        borderBottom: `1px solid ${color}40`,
+        padding: '4px 8px',
+        borderRadius: '4px 4px 0 0',
+        height: HEADER_H,
+        display: 'flex', flexDirection: 'column', justifyContent: 'center',
+      }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color, letterSpacing: '0.06em' }}>{label}</div>
+        <div style={{ fontSize: 7, color: '#5a7a9a' }}>{model}</div>
+      </div>
 
-  // 分类：MCU放左侧，其他放右侧
-  const mcus = nodes.filter(n => n.data.type === 'mcu')
-  const others = nodes.filter(n => n.data.type !== 'mcu')
-
-  const GAP_X = 320
-  const GAP_Y = 80
-  const START_X = 60
-  const START_Y = 60
-
-  // MCU 放左侧，中心排列
-  const mcuStartY = START_Y + Math.floor((others.length * GAP_Y) / 2)
-  mcus.forEach((n, i) => {
-    n.position = { x: START_X, y: mcuStartY + i * 200 }
-  })
-
-  // 其他放右侧
-  others.forEach((n, i) => {
-    n.position = { x: START_X + GAP_X, y: START_Y + i * GAP_Y }
-  })
-
-  return { nodes, edges }
+      <div style={{ padding: `${PAD}px 0 ${PAD}px ${PAD}px` }}>
+        {pins.map((pin, i) => (
+          <div key={i}
+            style={{ display: 'flex', alignItems: 'center', height: PIN_ROW_H, position: 'relative' }}>
+            {/* Target handle on left — used when peripheral receives connection */}
+            <Handle
+              type="target"
+              position={Position.Left}
+              id={`tgt_${pin.name}`}
+              style={{
+                position: 'absolute', left: -3, top: '50%', transform: 'translateY(-50%)',
+                width: 7, height: 7,
+                background: pinColor(pin.name, color),
+                border: 'none', borderRadius: '50%',
+                boxShadow: `0 0 5px ${pinColor(pin.name, color)}80`,
+                zIndex: 2,
+              }}
+            />
+            <span style={{ fontSize: 7.5, color: '#e0e0e0', letterSpacing: '0.03em', zIndex: 1 }}>{pin.name}</span>
+            {pin.gpioNum !== undefined && (
+              <span style={{ fontSize: 6, color: '#5a7a9a', marginLeft: 3, zIndex: 1 }}>{pin.gpioNum}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
-// ── 主组件 ────────────────────────────────────────────────────────────────
-interface PinConnectionCanvasProps {
-  schema: import('../../shared/types/project.schema').AIProjectSchema | null
+const NODE_TYPES = { mcu: MCUNode, peripheral: PeripheralNode }
+
+// ── 布局：MCU居左，引脚纵向展开；外设Y坐标与MCU对应引脚对齐 ───
+function computeLayout(nodes: Node[]): Node[] {
+  const mcu = nodes.find(n => n.data.type === 'mcu')
+  const periphs = nodes.filter(n => n.data.type !== 'mcu')
+  if (!mcu) return nodes
+
+  const mcuPins = mcu.data.pins as { name: string }[]
+  const MCU_H = HEADER_H + mcuPins.length * PIN_ROW_H + PAD * 2
+
+  mcu.position = { x: MCU_X, y: 60 }
+
+  periphs.forEach(n => {
+    const pins = n.data.pins as { name: string }[]
+    // 用第0根引脚与MCU第0根引脚对齐
+    const refY = 60 + HEADER_H + PAD + PIN_ROW_H / 2
+    const nodeCenter = HEADER_H / 2 + PAD
+    n.position = { x: PERIPH_X, y: refY - nodeCenter }
+  })
+
+  return [...nodes]
 }
 
-export function PinConnectionCanvas({ schema }: PinConnectionCanvasProps) {
+// ── 主组件 ───────────────────────────────────────────────────────────
+interface Props { schema: import('../../shared/types/project.schema').AIProjectSchema | null }
+
+function PinConnectionCanvasInner({ schema }: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
 
-  // Rebuild nodes/edges when schema changes
-  const { initialNodes, initialEdges } = useMemo(() => {
-    if (!schema) return { initialNodes: [], initialEdges: [] }
+  useEffect(() => {
+    if (!schema) { setNodes([]); setEdges([]); return }
 
-    const initialNodes: Node[] = schema.components.map((comp, idx) => ({
-      id: comp.id,
-      type: 'pinNode',
-      position: { x: 0, y: 0 },  // will be set by autoLayout
-      data: {
-        label: comp.label,
-        model: comp.model,
-        type: comp.type,
-        pins: comp.pins,
-      },
-      draggable: true,
-    }))
+    const mcuNodes: Node[] = schema.components
+      .filter(c => c.type === 'mcu')
+      .map(c => ({ id: c.id, type: 'mcu', position: { x: 0, y: 0 }, data: { label: c.label, model: c.model, type: c.type, pins: c.pins }, draggable: true }))
 
-    const initialEdges: Edge[] = schema.connections.map(conn => {
+    const periphNodes: Node[] = schema.components
+      .filter(c => c.type !== 'mcu')
+      .map(c => ({ id: c.id, type: 'peripheral', position: { x: 0, y: 0 }, data: { label: c.label, model: c.model, type: c.type, pins: c.pins }, draggable: true }))
+
+    const laid = computeLayout([...mcuNodes, ...periphNodes])
+
+    const newEdges: Edge[] = schema.connections.map(conn => {
+      const srcComp = schema.components.find(c => c.id === conn.source.componentId)
+      const isSrcMCU = srcComp?.type === 'mcu'
       const p = conn.source.pinName.toUpperCase()
       const isPower = ['VCC','3V3','5V','GND'].includes(p)
       const color = (() => {
@@ -177,26 +208,21 @@ export function PinConnectionCanvas({ schema }: PinConnectionCanvasProps) {
         id: conn.id,
         source: conn.source.componentId,
         target: conn.target.componentId,
-        sourceHandle: `r_${conn.source.pinName}`,
-        targetHandle: `l_${conn.target.pinName}`,
-        type: 'smoothstep',
+        sourceHandle: isSrcMCU ? `src_${conn.source.pinName}` : `tgt_${conn.source.pinName}`,
+        targetHandle: isSrcMCU ? `tgt_${conn.target.pinName}` : `src_${conn.target.pinName}`,
+        type: 'straight',
         animated: isPower,
-        style: { stroke: color, strokeWidth: 1.8, opacity: 0.85 },
-        markerEnd: { type: MarkerType.ArrowClosed, color, width: 10, height: 10 },
-        label: conn.source.pinName,
-        labelStyle: { fill: color, fontSize: 8, fontFamily: '"JetBrains Mono",monospace' },
+        style: { stroke: color, strokeWidth: isPower ? 2.5 : 1.8, opacity: 0.88 },
+        markerEnd: { type: MarkerType.ArrowClosed, color, width: 9, height: 9 },
+        label: isPower ? '' : conn.source.pinName,
+        labelStyle: { fill: color, fontSize: 7.5, fontFamily: '"JetBrains Mono",monospace' },
         labelBgStyle: { fill: '#0f2744', fillOpacity: 0.9 },
       }
     })
 
-    const laid = autoLayout(initialNodes, initialEdges)
-    return { initialNodes: laid.nodes, initialEdges: laid.edges }
-  }, [schema])
-
-  React.useEffect(() => {
-    setNodes(initialNodes)
-    setEdges(initialEdges)
-  }, [initialNodes, initialEdges, setNodes, setEdges])
+    setNodes(laid)
+    setEdges(newEdges)
+  }, [schema, setNodes, setEdges])
 
   if (!schema) {
     return (
@@ -223,19 +249,13 @@ export function PinConnectionCanvas({ schema }: PinConnectionCanvasProps) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         fitView
-        fitViewOptions={{ padding: 0.15 }}
+        fitViewOptions={{ padding: 0.2 }}
         minZoom={0.1}
         maxZoom={3}
         proOptions={{ hideAttribution: true }}
-        defaultEdgeOptions={{
-          type: 'smoothstep',
-          style: { strokeWidth: 1.8, opacity: 0.85 },
-        }}
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#1e3a5f" />
-        <Controls
-          style={{ background: '#0f2744', border: '1px solid #1e3a5f', borderRadius: 6 }}
-        />
+        <Controls style={{ background: '#0f2744', border: '1px solid #1e3a5f', borderRadius: 6 }} />
         <Panel position="top-left">
           <div style={{
             fontFamily: '"JetBrains Mono",monospace', fontSize: 8, color: '#9aabb8',
@@ -247,5 +267,13 @@ export function PinConnectionCanvas({ schema }: PinConnectionCanvasProps) {
         </Panel>
       </ReactFlow>
     </div>
+  )
+}
+
+export function PinConnectionCanvas({ schema }: Props) {
+  return (
+    <ReactFlowProvider>
+      <PinConnectionCanvasInner schema={schema} />
+    </ReactFlowProvider>
   )
 }
