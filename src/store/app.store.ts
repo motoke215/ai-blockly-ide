@@ -14,6 +14,30 @@ export interface AgentSlice {
 }
 const makeAgent = (): AgentSlice => ({ status: 'idle', tokens: '', durationMs: null, error: null })
 
+// ── History ────────────────────────────────────────────────────────────────
+export interface HistoryEntry {
+  id: string        // unique id (timestamp-based)
+  name: string
+  description: string
+  targetBoard: string
+  componentCount: number
+  connectionCount: number
+  timestamp: number
+  compileOk: boolean | null
+  schema: AIProjectSchema  // full schema for reloading
+}
+
+const HISTORY_KEY = 'ai-blockly-ide:history'
+const MAX_HISTORY = 30
+
+function loadHistory(): HistoryEntry[] {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]') } catch { return [] }
+}
+function saveHistory(entries: HistoryEntry[]) {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(entries.slice(0, MAX_HISTORY)))
+}
+
+// ── State ─────────────────────────────────────────────────────────────────
 export interface AppState {
   pipelineRunning: boolean
   guardError:      string | null
@@ -34,6 +58,7 @@ export interface AppState {
     toPng: (opts?: any) => Promise<string>
   } | null
   _bbCanvas: SVGSVGElement | null
+  history: HistoryEntry[]
 }
 
 export interface AppActions {
@@ -43,12 +68,14 @@ export interface AppActions {
   setSelectedPort:   (port: string) => void
   clearLogs:         () => void
   resetPipeline:     () => void
+  addHistory:        (entry: Omit<HistoryEntry, 'id'>) => void
+  clearHistory:      () => void
+  loadFromHistory:   (id: string) => void
 }
 
 export const useAppStore = create<AppState & AppActions>()(
   immer((set, get) => {
 
-    // ── Bus subscriptions ────────────────────────────────────────────────
     bus.on('pipeline:start', () => {
       set(s => {
         s.pipelineRunning = true; s.guardError = null
@@ -87,12 +114,24 @@ export const useAppStore = create<AppState & AppActions>()(
     })
 
     bus.on('pipeline:done', ({ schema }) => {
+      const entry: Omit<HistoryEntry, 'id'> = {
+        name: schema.meta.name,
+        description: schema.meta.description,
+        targetBoard: schema.meta.targetBoard,
+        componentCount: schema.components.length,
+        connectionCount: schema.connections.length,
+        timestamp: Date.now(),
+        compileOk: null,
+        schema,
+      }
       set(s => {
         s.schema = schema; s.pipelineRunning = false
         s.sketchName = schema.meta.name.replace(/\s+/g, '_')
         const { nodes, edges } = schemaToFlow(schema)
         s.nodes = nodes; s.edges = edges
       })
+      // Add to history after state update
+      setTimeout(() => { get().addHistory(entry) }, 100)
     })
 
     bus.on('pipeline:error', () => {
@@ -131,12 +170,25 @@ export const useAppStore = create<AppState & AppActions>()(
     })
 
     bus.on('compile:done', ({ success }) => {
-      set(s => { s.compileRunning = false; s.lastCompileOk = success })
+      set(s => {
+        s.compileRunning = false
+        s.lastCompileOk = success
+        // Update history entry compile status if current schema matches
+        if (s.schema && s.history.length > 0) {
+          const latest = s.history[0]
+          if (latest?.schema.meta.id === s.schema.meta.id) {
+            latest.compileOk = success
+            saveHistory(s.history)
+          }
+        }
+      })
     })
 
     bus.on('upload:done', ({ success }) => {
       set(s => { s.lastUploadOk = success })
     })
+
+    const initialHistory = loadHistory()
 
     return {
       pipelineRunning: false, guardError: null,
@@ -148,6 +200,7 @@ export const useAppStore = create<AppState & AppActions>()(
       _wireSweep: null,
       _canvas: null,
       _bbCanvas: null,
+      history: initialHistory,
 
       registerWireSweep: (fn) => set(s => { s._wireSweep = fn }),
       registerCanvas: (canvas) => set(s => { s._canvas = canvas }),
@@ -159,6 +212,28 @@ export const useAppStore = create<AppState & AppActions>()(
         s.agents = { analyst: makeAgent(), architect: makeAgent(), programmer: makeAgent() }
         s.nodes = []; s.edges = []; s.schema = null
       }),
+
+      addHistory: (entry) => set(s => {
+        const full: HistoryEntry = { ...entry, id: `hist_${Date.now()}_${Math.random().toString(36).slice(2,7)}` }
+        s.history = [full, ...s.history].slice(0, MAX_HISTORY)
+        saveHistory(s.history)
+      }),
+
+      clearHistory: () => set(s => { s.history = []; saveHistory([]) }),
+
+      loadFromHistory: (id) => {
+        const entry = get().history.find(h => h.id === id)
+        if (!entry) return
+        const { nodes, edges } = schemaToFlow(entry.schema)
+        set(s => {
+          s.schema = entry.schema
+          s.nodes = nodes
+          s.edges = edges
+          s.arduinoCode = ''
+          s.sketchName = entry.schema.meta.name.replace(/\s+/g, '_')
+          s.lastCompileOk = entry.compileOk
+        })
+      },
     }
   })
 )

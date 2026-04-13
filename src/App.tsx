@@ -1,5 +1,5 @@
 // src/App.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ReactFlowProvider } from 'reactflow';
 import { ModelSettings }     from './modules/settings/ModelSettings';
 import { useModelConfig }    from './modules/settings/useModelConfig';
@@ -75,7 +75,6 @@ export default function App() {
 // src/layouts/MainLayout.tsx  — complete with settings button + model badge
 // ══════════════════════════════════════════════════════════════════════
 
-import { useRef } from 'react';
 import { useNodesState, useEdgesState }           from 'reactflow';
 import { useAppStore }          from './store/app.store';
 import { bus }                  from './shared/event-bus';
@@ -97,6 +96,114 @@ interface MainLayoutProps {
 }
 
 // ── Titlebar ──────────────────────────────────────────────────────────────────
+// ── History Dropdown ───────────────────────────────────────────────────────
+function HistoryDropdown() {
+  const history = useAppStore(s => s.history)
+  const loadFromHistory = useAppStore(s => s.loadFromHistory)
+  const clearHistory = useAppStore(s => s.clearHistory)
+  const [open, setOpen] = useState(false)
+  const dropRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const close = (e: MouseEvent) => {
+      if (dropRef.current && !dropRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+
+  const fmt = (ts: number) => {
+    const d = new Date(ts)
+    return `${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`
+  }
+
+  return (
+    <div ref={dropRef} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          fontFamily: '"JetBrains Mono",monospace', fontSize: 8, fontWeight: 700,
+          letterSpacing: '0.08em', padding: '3px 9px', borderRadius: 4, cursor: 'pointer',
+          border: `1px solid ${open ? '#00ffcc50' : '#2a4a6f'}`,
+          color: open ? '#00ffcc' : '#5a7a9a', background: open ? '#0a2a1a' : 'transparent',
+          transition: 'all .15s', display: 'flex', alignItems: 'center', gap: 4,
+        }}
+        onMouseEnter={e => { if (!open) { (e.currentTarget as HTMLElement).style.color = '#00ffcc'; (e.currentTarget as HTMLElement).style.borderColor = '#00ffcc50' } }}
+        onMouseLeave={e => { if (!open) { (e.currentTarget as HTMLElement).style.color = '#5a7a9a'; (e.currentTarget as HTMLElement).style.borderColor = '#2a4a6f' } }}
+      >
+        <span style={{ fontSize: 10 }}>📋</span>
+        <span>历史</span>
+        {history.length > 0 && (
+          <span style={{ background: '#2a4a6f', borderRadius: 3, padding: '0 4px', fontSize: 7 }}>{history.length}</span>
+        )}
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, marginTop: 4, zIndex: 300,
+          background: '#0d1e33', border: '1px solid #2a4a6f', borderRadius: 6,
+          minWidth: 280, maxWidth: 340, boxShadow: '0 8px 24px #00000060', overflow: 'hidden',
+        }}>
+          <div style={{ padding: '6px 12px', borderBottom: '1px solid #1e3a5f',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontFamily: '"JetBrains Mono",monospace', fontSize: 7, fontWeight: 700,
+              color: '#64b5f6', letterSpacing: '0.1em' }}>
+              历史记录 ({history.length})
+            </span>
+            {history.length > 0 && (
+              <button onClick={() => { clearHistory(); setOpen(false) }}
+                style={{ fontFamily: '"JetBrains Mono",monospace', fontSize: 6, color: '#ff6b6b',
+                  background: 'transparent', border: 'none', cursor: 'pointer', letterSpacing: '0.06em' }}>
+                清空
+              </button>
+            )}
+          </div>
+
+          {history.length === 0 && (
+            <div style={{ padding: '16px 12px', textAlign: 'center' }}>
+              <div style={{ fontFamily: '"JetBrains Mono",monospace', fontSize: 8, color: '#3a5a7a' }}>
+                暂无历史记录
+              </div>
+            </div>
+          )}
+
+          {history.map(entry => (
+            <button
+              key={entry.id}
+              onClick={() => { loadFromHistory(entry.id); setOpen(false) }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                padding: '7px 12px', background: 'transparent', border: 'none',
+                cursor: 'pointer', textAlign: 'left', transition: 'background .1s',
+                borderBottom: '1px solid #1e3a5f',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#1a3a5a' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+            >
+              <div style={{
+                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                background: entry.compileOk === true ? '#00ff9d' : entry.compileOk === false ? '#ff6b6b' : '#fbbf24',
+              }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: '"JetBrains Mono",monospace', fontSize: 8, fontWeight: 700,
+                  color: '#c0d0e0', letterSpacing: '0.04em',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {entry.name}
+                </div>
+                <div style={{ fontFamily: '"JetBrains Mono",monospace', fontSize: 6.5, color: '#5a7a9a', marginTop: 1 }}>
+                  {entry.targetBoard.toUpperCase()} · {entry.componentCount}芯片/{entry.connectionCount}连线 · {fmt(entry.timestamp)}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Titlebar ────────────────────────────────────────────────────────────────
 function Titlebar({ onOpenSettings, activeConfig, update, onDownloadUpdate, onInstallUpdate }: MainLayoutProps) {
   const { pipelineRunning, lastCompileOk, schema } = useAppStore(s => ({
     pipelineRunning: s.pipelineRunning,
@@ -117,6 +224,11 @@ function Titlebar({ onOpenSettings, activeConfig, update, onDownloadUpdate, onIn
       <span style={{ color: '#00ffcc', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em' }}>
         AI-BLOCKLY-IDE
       </span>
+      <div style={{ width: 1, height: 14, background: '#2a4a6f' }} />
+
+      {/* History dropdown */}
+      <HistoryDropdown />
+
       <div style={{ width: 1, height: 14, background: '#2a4a6f' }} />
       {schema && (
         <span style={{ color: '#64b5f6', fontSize: 8, letterSpacing: '0.05em' }}>{schema.meta.name}</span>
@@ -273,7 +385,7 @@ export function MainLayout({ onOpenSettings, activeConfig, update, onDownloadUpd
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         <div style={{ width: chatW, flexShrink: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <ChatPanel onSubmit={handleSubmit} />
+          <ChatPanel onSubmit={handleSubmit} activeConfig={activeConfig} />
         </div>
         <ResizeHandle onDrag={dx => setChatW(w => Math.max(280, Math.min(520, w + dx)))} />
         <div style={{ flex: 1, overflow: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
