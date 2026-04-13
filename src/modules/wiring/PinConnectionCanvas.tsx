@@ -293,7 +293,7 @@ function PinConnectionCanvasInner({ schema }: Props) {
         target: conn.target.componentId,
         sourceHandle: isSrcMCU ? `src_${conn.source.pinName}` : `src_${conn.source.pinName}`,
         targetHandle: isSrcMCU ? `tgt_${conn.target.pinName}` : `tgt_${conn.target.pinName}`,
-        type: 'straight',
+        type: 'smoothstep',
         animated: isPower,
         style: { stroke: color, strokeWidth: isPower ? 2.5 : 1.8, opacity: 0.88 },
         markerEnd: { type: MarkerType.ArrowClosed, color, width: 8, height: 8 },
