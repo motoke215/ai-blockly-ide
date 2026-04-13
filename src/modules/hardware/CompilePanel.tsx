@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useArduinoCli } from './useArduinoCli'
 import { useAppStore }   from '../../store/app.store'
 import { generateBOMCSV } from '../file/exporters/bom-exporter'
+import { DesignChainPanel } from '../ai-chat/DesignChainPanel'
 
 const MONO: React.CSSProperties = { fontFamily: '"JetBrains Mono","Fira Code",monospace' }
 const LOG_COLORS: Record<string, string> = { info:'#64b5f6',warn:'#ffd700',error:'#ff6b6b',success:'#00ff9d',system:'#00ffcc' }
@@ -44,6 +45,8 @@ export function CompilePanel({ onCodeChange }: CompilePanelProps) {
 
   return (
     <div style={{ ...MONO, display: 'flex', flexDirection: 'column', height: '100%', background: '#0f2744' }}>
+
+      <DesignChainPanel />
 
       {/* Tab bar */}
       <div style={{ display: 'flex', borderBottom: '1px solid #2a4a6f', flexShrink: 0, background: '#162d4a' }}>

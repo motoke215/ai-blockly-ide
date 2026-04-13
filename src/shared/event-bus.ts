@@ -1,6 +1,6 @@
-// src/shared/event-bus.ts
 import mitt from 'mitt'
 import type { AIProjectSchema } from './types/project.schema'
+import type { SchemaValidationResult } from '../modules/ai-chat/schema-validator'
 
 export type AgentRole = 'analyst' | 'architect' | 'programmer'
 
@@ -14,6 +14,7 @@ export type BusEvents = {
   'pipeline:start':   { userPrompt: string }
   'pipeline:done':    { schema: AIProjectSchema }
   'pipeline:error':   { message: string }
+  'pipeline:retry':   { attempt: number; reason: string; roles: AgentRole[]; validation: SchemaValidationResult }
   'pipeline:abort':   void
   'agent:start':      { role: AgentRole }
   'agent:token':      { role: AgentRole; token: string }

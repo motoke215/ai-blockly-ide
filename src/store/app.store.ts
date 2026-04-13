@@ -6,6 +6,7 @@ import type { AgentRole, LogLine } from '../shared/event-bus'
 import type { AIProjectSchema }    from '../shared/types/project.schema'
 import type { Node, Edge }         from 'reactflow'
 import { schemaToFlow }  from '../modules/wiring/schema-to-flow'
+import { normalizeConnections } from '../modules/wiring/connection-normalizer'
 
 export type AgentStatus = 'idle' | 'running' | 'done' | 'error' | 'blocked'
 
@@ -13,6 +14,28 @@ export interface AgentSlice {
   status: AgentStatus; tokens: string; durationMs: number | null; error: string | null
 }
 const makeAgent = (): AgentSlice => ({ status: 'idle', tokens: '', durationMs: null, error: null })
+
+function ensureSchemaShape(schema: AIProjectSchema): AIProjectSchema {
+  return {
+    meta: schema.meta,
+    requirements: schema.requirements ?? {
+      summary: '',
+      coreFunctions: [],
+      inputs: [],
+      outputs: [],
+      interactions: [],
+      communication: [],
+      power: [],
+      constraints: [],
+    },
+    components: schema.components ?? [],
+    functionalRoles: schema.functionalRoles ?? [],
+    interfacePlan: schema.interfacePlan ?? [],
+    connectionPlan: schema.connectionPlan ?? [],
+    connections: schema.connections ?? [],
+    blocklyWorkspace: schema.blocklyWorkspace ?? [],
+  }
+}
 
 // ── History ────────────────────────────────────────────────────────────────
 export interface HistoryEntry {
@@ -31,7 +54,12 @@ const HISTORY_KEY = 'ai-blockly-ide:history'
 const MAX_HISTORY = 30
 
 function loadHistory(): HistoryEntry[] {
-  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]') } catch { return [] }
+  try {
+    const entries = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]') as HistoryEntry[]
+    return entries.map(entry => ({ ...entry, schema: ensureSchemaShape(entry.schema) }))
+  } catch {
+    return []
+  }
 }
 function saveHistory(entries: HistoryEntry[]) {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(entries.slice(0, MAX_HISTORY)))
@@ -114,23 +142,23 @@ export const useAppStore = create<AppState & AppActions>()(
     })
 
     bus.on('pipeline:done', ({ schema }) => {
+      const normalizedSchema = ensureSchemaShape(normalizeConnections(schema))
       const entry: Omit<HistoryEntry, 'id'> = {
-        name: schema.meta.name,
-        description: schema.meta.description,
-        targetBoard: schema.meta.targetBoard,
-        componentCount: schema.components.length,
-        connectionCount: schema.connections.length,
+        name: normalizedSchema.meta.name,
+        description: normalizedSchema.meta.description,
+        targetBoard: normalizedSchema.meta.targetBoard,
+        componentCount: normalizedSchema.components.length,
+        connectionCount: normalizedSchema.connections.length,
         timestamp: Date.now(),
         compileOk: null,
-        schema,
+        schema: normalizedSchema,
       }
       set(s => {
-        s.schema = schema; s.pipelineRunning = false
-        s.sketchName = schema.meta.name.replace(/\s+/g, '_')
-        const { nodes, edges } = schemaToFlow(schema)
+        s.schema = normalizedSchema; s.pipelineRunning = false
+        s.sketchName = normalizedSchema.meta.name.replace(/\s+/g, '_')
+        const { nodes, edges } = schemaToFlow(normalizedSchema)
         s.nodes = nodes; s.edges = edges
       })
-      // Add to history after state update
       setTimeout(() => { get().addHistory(entry) }, 100)
     })
 
@@ -173,7 +201,6 @@ export const useAppStore = create<AppState & AppActions>()(
       set(s => {
         s.compileRunning = false
         s.lastCompileOk = success
-        // Update history entry compile status if current schema matches
         if (s.schema && s.history.length > 0) {
           const latest = s.history[0]
           if (latest?.schema.meta.id === s.schema.meta.id) {
@@ -224,13 +251,14 @@ export const useAppStore = create<AppState & AppActions>()(
       loadFromHistory: (id) => {
         const entry = get().history.find(h => h.id === id)
         if (!entry) return
-        const { nodes, edges } = schemaToFlow(entry.schema)
+        const normalizedSchema = ensureSchemaShape(normalizeConnections(entry.schema))
+        const { nodes, edges } = schemaToFlow(normalizedSchema)
         set(s => {
-          s.schema = entry.schema
+          s.schema = normalizedSchema
           s.nodes = nodes
           s.edges = edges
           s.arduinoCode = ''
-          s.sketchName = entry.schema.meta.name.replace(/\s+/g, '_')
+          s.sketchName = normalizedSchema.meta.name.replace(/\s+/g, '_')
           s.lastCompileOk = entry.compileOk
         })
       },

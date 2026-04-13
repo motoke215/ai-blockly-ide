@@ -54,6 +54,7 @@ export function ChatPanel({
   const [mode, setMode]           = useState<ChatMode>('pipeline')
   const [chat, dispatch]          = useReducer(chatReducer, { entries: [], activeAgent: null, tokenBuf: '' })
   const [input, setInput]         = useState('')
+  const [retryNotice, setRetryNotice] = useState<string | null>(null)
   const endRef                    = useRef<HTMLDivElement>(null)
   const abortRef                  = useRef<(() => void) | null>(null)
 
@@ -66,24 +67,38 @@ export function ChatPanel({
     const onToken = ({ role, token }: { role: AgentRole; token: string }) =>
       dispatch({ type: 'TOKEN', role, token })
     const onPipeDone = ({ schema }: any) => {
+      setRetryNotice(null)
       dispatch({ type: 'CLEAR_TOKEN' })
       dispatch({ type: 'ADD', entry: {
         id: `s_${Date.now()}`, role: 'system', ts: Date.now(),
         content: `✓ 选型 ${schema.components.length} 个元器件\n✓ 生成 ${schema.connections.length} 条连线\n✓ Blockly 积木 ${schema.blocklyWorkspace.length} 组\n→ 目标板：${schema.meta.targetBoard}`,
       }})
     }
+    const onPipeRetry = ({ attempt, reason, roles, validation }: { attempt: number; reason: string; roles: AgentRole[]; validation: any }) => {
+      const msg = `⟳ 自动校验重试 #${attempt} · ${roles.join(' → ')} · score=${validation.score}`
+      setRetryNotice(msg)
+      dispatch({ type: 'ADD', entry: {
+        id: `r_${Date.now()}`,
+        role: 'system',
+        ts: Date.now(),
+        content: `${msg}\n原因：${reason}`,
+      }})
+    }
     const onPipeErr = ({ message }: { message: string }) => {
+      setRetryNotice(null)
       dispatch({ type: 'CLEAR_TOKEN' })
       dispatch({ type: 'ADD', entry: { id: `e_${Date.now()}`, role: 'error', ts: Date.now(), content: `⚠ ${message}` }})
     }
     bus.on('agent:start',    onAgentStart)
     bus.on('agent:token',    onToken)
     bus.on('pipeline:done',  onPipeDone)
+    bus.on('pipeline:retry', onPipeRetry)
     bus.on('pipeline:error', onPipeErr)
     return () => {
       bus.off('agent:start',    onAgentStart)
       bus.off('agent:token',    onToken)
       bus.off('pipeline:done',  onPipeDone)
+      bus.off('pipeline:retry', onPipeRetry)
       bus.off('pipeline:error', onPipeErr)
     }
   }, [])
@@ -218,13 +233,21 @@ export function ChatPanel({
               {pipelineRunning && (
                 <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:3, flexShrink:0 }}>
                   <div style={{ width:4, height:4, borderRadius:'50%', background:'#4ade80', animation:'pulse-c 1s ease-in-out infinite' }} />
-                  <span style={{ fontSize:7, color:'#00ff9d', letterSpacing:'.08em' }}>处理中</span>
+                  <span style={{ fontSize:7, color:'#00ff9d', letterSpacing:'.08em' }}>
+                    {retryNotice ? '校验回退中' : '处理中'}
+                  </span>
                 </div>
               )}
             </div>
           </>
         )}
       </div>
+
+      {retryNotice && mode === 'pipeline' && (
+        <div style={{ padding:'4px 12px', background:'#1a0d2e', borderBottom:'1px solid #c084fc30', flexShrink:0 }}>
+          <div style={{ fontSize:7.5, color:'#c084fc', letterSpacing:'.08em', lineHeight:1.6 }}>{retryNotice}</div>
+        </div>
+      )}
 
       {/* ── Token preview ─────────────────────────────────────────────────── */}
       {chat.activeAgent && (

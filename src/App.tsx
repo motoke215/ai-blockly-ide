@@ -381,7 +381,10 @@ export function MainLayout({ onOpenSettings, activeConfig, update, onDownloadUpd
         case 'agent_token':    bus.emit('agent:token', { role: evt.agent, token: evt.token }); break;
         case 'agent_done':     bus.emit('agent:done',  { role: evt.agent, durationMs: evt.durationMs }); break;
         case 'agent_error':    bus.emit('agent:error', { role: evt.agent, message: evt.error }); break;
-        case 'pipeline_done':  bus.emit('pipeline:done',  { schema: evt.schema }); break;
+        case 'pipeline_done':
+          bus.emit('pipeline:done',  { schema: evt.schema }); break;
+        case 'pipeline_retry':
+          bus.emit('pipeline:retry', { attempt: evt.attempt, reason: evt.reason, roles: evt.roles, validation: evt.validation }); break;
         case 'pipeline_error': bus.emit('pipeline:error', { message: evt.error }); break;
       }
     });
