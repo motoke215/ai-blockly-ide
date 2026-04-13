@@ -4,7 +4,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { PROVIDERS } from '@/shared/llm-providers';
-import { useModelConfig } from './useModelConfig';
+import { useModelConfig } from './ModelConfigContext';
 
 const mono: React.CSSProperties = { fontFamily: '"JetBrains Mono","Fira Code",monospace' };
 

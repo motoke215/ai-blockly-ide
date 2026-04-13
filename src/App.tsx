@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ReactFlowProvider } from 'reactflow';
 import { ModelSettings }     from './modules/settings/ModelSettings';
-import { useModelConfig }    from './modules/settings/useModelConfig';
+import { ModelConfigProvider, useModelConfig } from './modules/settings/ModelConfigContext';
 import { FileMenuDropdown }  from './modules/file/FileMenuDropdown';
 import 'reactflow/dist/style.css';
 import './store/app.store';   // trigger bus subscriptions
@@ -28,7 +28,7 @@ type UpdateStatus =
 
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { cfg, activeConfig }           = useModelConfig();
+  const { activeConfig } = useModelConfig();
   const [update, setUpdate] = useState<UpdateStatus>({ state: 'idle' })
 
   useEffect(() => {
@@ -56,17 +56,18 @@ export default function App() {
   }, [])
 
   return (
-    <ReactFlowProvider>
-      {settingsOpen && <ModelSettings onClose={() => setSettingsOpen(false)} />}
-
-      <MainLayout
-        onOpenSettings={() => setSettingsOpen(true)}
-        activeConfig={activeConfig}
-        update={update}
-        onDownloadUpdate={handleDownloadUpdate}
-        onInstallUpdate={handleInstallUpdate}
-      />
-    </ReactFlowProvider>
+    <ModelConfigProvider>
+      <ReactFlowProvider>
+        {settingsOpen && <ModelSettings onClose={() => setSettingsOpen(false)} />}
+        <MainLayout
+          onOpenSettings={() => setSettingsOpen(true)}
+          activeConfig={activeConfig}
+          update={update}
+          onDownloadUpdate={handleDownloadUpdate}
+          onInstallUpdate={handleInstallUpdate}
+        />
+      </ReactFlowProvider>
+    </ModelConfigProvider>
   );
 }
 
