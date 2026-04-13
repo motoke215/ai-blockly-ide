@@ -26,7 +26,17 @@ type UpdateStatus =
   | { state: 'ready'; version: string }
   | { state: 'error'; message: string }
 
+// Outer root — Provider must wrap everything that uses useModelConfig
 export default function App() {
+  return (
+    <ModelConfigProvider>
+      <AppRoot />
+    </ModelConfigProvider>
+  );
+}
+
+// All child components go here (inside Provider)
+function AppRoot() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { activeConfig } = useModelConfig();
   const [update, setUpdate] = useState<UpdateStatus>({ state: 'idle' })
@@ -56,18 +66,16 @@ export default function App() {
   }, [])
 
   return (
-    <ModelConfigProvider>
-      <ReactFlowProvider>
-        {settingsOpen && <ModelSettings onClose={() => setSettingsOpen(false)} />}
-        <MainLayout
-          onOpenSettings={() => setSettingsOpen(true)}
-          activeConfig={activeConfig}
-          update={update}
-          onDownloadUpdate={handleDownloadUpdate}
-          onInstallUpdate={handleInstallUpdate}
-        />
-      </ReactFlowProvider>
-    </ModelConfigProvider>
+    <ReactFlowProvider>
+      {settingsOpen && <ModelSettings onClose={() => setSettingsOpen(false)} />}
+      <MainLayout
+        onOpenSettings={() => setSettingsOpen(true)}
+        activeConfig={activeConfig}
+        update={update}
+        onDownloadUpdate={handleDownloadUpdate}
+        onInstallUpdate={handleInstallUpdate}
+      />
+    </ReactFlowProvider>
   );
 }
 
