@@ -204,13 +204,15 @@ function HistoryDropdown() {
 }
 
 // ── Titlebar ────────────────────────────────────────────────────────────────
-function Titlebar({ onOpenSettings, activeConfig, update, onDownloadUpdate, onInstallUpdate }: MainLayoutProps) {
+function Titlebar({ onOpenSettings, update, onDownloadUpdate, onInstallUpdate }: Omit<MainLayoutProps, 'activeConfig'>) {
   const { pipelineRunning, lastCompileOk, schema } = useAppStore(s => ({
     pipelineRunning: s.pipelineRunning,
     lastCompileOk:   s.lastCompileOk,
     schema:          s.schema,
   }));
 
+  // Read active config directly from store — stays in sync regardless of prop drilling
+  const { activeConfig } = useModelConfig()
   const provider = activeConfig ? PROVIDER_MAP[activeConfig.providerId] : null;
   const mono: React.CSSProperties = { fontFamily: '"JetBrains Mono",monospace' };
 
@@ -380,7 +382,7 @@ export function MainLayout({ onOpenSettings, activeConfig, update, onDownloadUpd
   return (
     <div style={{ ...mono, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#0f2744' }}>
       <style>{`@keyframes pulse-global{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.5)}}`}</style>
-      <Titlebar onOpenSettings={onOpenSettings} activeConfig={activeConfig}
+      <Titlebar onOpenSettings={onOpenSettings}
         update={update} onDownloadUpdate={onDownloadUpdate} onInstallUpdate={onInstallUpdate} />
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>

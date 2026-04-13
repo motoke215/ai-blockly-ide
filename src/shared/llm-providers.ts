@@ -124,8 +124,10 @@ export const PROVIDERS: LLMProvider[] = [
     keyPrefix: '', keyPlaceholder: 'your-api-key',
     openaiCompat: true,
     models: [
-      { id: 'MiniMax-Text-01', label: 'MiniMax Text-01', contextK: 1000, recommended: true },
-      { id: 'abab6.5s-chat',   label: 'ABAB 6.5s',       contextK: 245 },
+      { id: 'MiniMax-M2.7',         label: 'MiniMax M2.7',         contextK: 2048, recommended: true },
+      { id: 'MiniMax-M2.7-highspeed',label: 'MiniMax M2.7 高速',   contextK: 2048 },
+      { id: 'MiniMax-M2.5',         label: 'MiniMax M2.5',         contextK: 2048 },
+      { id: 'MiniMax-M2.5-highspeed',label: 'MiniMax M2.5 高速',   contextK: 2048 },
     ],
   },
   // ── Groq ──────────────────────────────────────────────────────────────
