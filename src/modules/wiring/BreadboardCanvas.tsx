@@ -206,7 +206,7 @@ export function BreadboardCanvas({ schema }: BreadboardCanvasProps) {
       const showSaveDialog = (window as any).file?.showSaveDialog
       if (showSaveDialog) {
         const result = await showSaveDialog({
-          title: 'Export Breadboard PNG',
+          title: '导出面包板 PNG',
           defaultPath: `${schema?.meta.name ?? 'breadboard'}_breadboard.png`,
           filters: [{ name: 'PNG Image', extensions: ['png'] }],
         })
@@ -215,7 +215,7 @@ export function BreadboardCanvas({ schema }: BreadboardCanvasProps) {
           await (window as any).file.writeFile(result.filePath, `data:image/png;base64,${base64}`)
         }
       }
-    } catch (e: any) { alert(`Export failed: ${e.message}`) }
+    } catch (e: any) { alert(`导出失败: ${e.message}`) }
   }, [layout, schema])
 
   if (!schema) {
@@ -225,11 +225,11 @@ export function BreadboardCanvas({ schema }: BreadboardCanvasProps) {
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
       }}>
         <div style={{ fontSize: 32, opacity: 0.1 }}>*</div>
-        <div style={{ fontSize: 9, color: '#00e5ff', letterSpacing: '.18em', fontFamily: 'monospace' }}>
-          BREADBOARD VIEW
+        <div style={{ fontSize: 10, color: '#ffffff', letterSpacing: '.18em', fontFamily: 'monospace' }}>
+          面包板视图
         </div>
-        <div style={{ fontSize: 8, color: '#5a7a9a', letterSpacing: '.1em', fontFamily: 'monospace' }}>
-          Waiting for AI to generate project...
+        <div style={{ fontSize: 9, color: '#cccccc', letterSpacing: '.1em', fontFamily: 'monospace' }}>
+          等待 AI 生成项目...
         </div>
       </div>
     )
@@ -241,12 +241,12 @@ export function BreadboardCanvas({ schema }: BreadboardCanvasProps) {
     <div ref={containerRef} style={{ width: '100%', height: '100%', background: '#0f2744', overflow: 'hidden', position: 'relative' }}>
       <div style={{
         position: 'absolute', top: 8, left: 12, zIndex: 10,
-        fontFamily: '"JetBrains Mono",monospace', fontSize: 7,
-        color: '#5a7a9a', letterSpacing: '.08em',
+        fontFamily: '"JetBrains Mono",monospace', fontSize: 8,
+        color: '#9aabb8', letterSpacing: '.08em',
         background: '#0a1628', border: '1px solid #1e3a5f',
         borderRadius: 4, padding: '3px 8px',
       }}>
-        BB View | {schema.components.length} chips | {schema.connections.length} wires
+        面包板视图 | {schema.components.length} 芯片 | {schema.connections.length} 连线
       </div>
 
       <button onClick={handleExportPNG} style={{
@@ -258,7 +258,7 @@ export function BreadboardCanvas({ schema }: BreadboardCanvasProps) {
       }}
         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#00ff9d20' }}
         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#0a2a1a' }}>
-        Export PNG
+        导出 PNG
       </button>
 
       <div style={{

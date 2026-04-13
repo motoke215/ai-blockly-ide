@@ -157,8 +157,8 @@ export function ChatPanel({
             <button key={t.key} onClick={() => setMode(t.key)}
               style={{
                 ...MONO, padding: '3px 9px', background: mode === t.key ? '#0a2a1a' : 'transparent',
-                border: 'none', cursor: 'pointer', fontSize: 7, fontWeight: 700, letterSpacing: '0.08em',
-                color: mode === t.key ? '#00ff9d' : '#5a7a9a',
+                border: 'none', cursor: 'pointer', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+                color: mode === t.key ? '#ffffff' : '#9aabb8',
                 transition: 'all .15s',
               }}>
               {t.label}
@@ -170,13 +170,13 @@ export function ChatPanel({
           /* Q&A mode: show pipeline context summary */
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, flex: 1, overflowX: 'auto' }}>
             {qaContext.schema && (
-              <span style={{ fontSize: 7, color: '#64b5f6', background: '#0a1628', border: '1px solid #1e3a5f',
+              <span style={{ fontSize: 8, color: '#64b5f6', background: '#0a1628', border: '1px solid #1e3a5f',
                 borderRadius: 3, padding: '1px 6px', whiteSpace: 'nowrap' }}>
                 📦 {qaContext.schema.meta.name}
               </span>
             )}
             {qaContext.pipelinePhase !== 'idle' && (
-              <span style={{ fontSize: 7, color: '#fb923c', background: '#1a0d2e', border: '1px solid #fb923c30',
+              <span style={{ fontSize: 8, color: '#fb923c', background: '#1a0d2e', border: '1px solid #fb923c30',
                 borderRadius: 3, padding: '1px 6px', whiteSpace: 'nowrap' }}>
                 {qaContext.pipelinePhase === 'done' ? '✓ 已完成' :
                  qaContext.pipelinePhase === 'error' ? '✗ 出错' :
@@ -185,7 +185,7 @@ export function ChatPanel({
                     qaContext.pipelinePhase === 'programmer' ? '编程中' : '处理中'}`}
               </span>
             )}
-            <span style={{ fontSize: 7, color: '#5a7a9a', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 8, color: '#9aabb8', whiteSpace: 'nowrap' }}>
               {qaContext.schema
                 ? `${qaContext.schema.components.length} 芯片 · ${qaContext.schema.connections.length} 连接`
                 : '等待项目生成'}
@@ -194,7 +194,7 @@ export function ChatPanel({
         ) : (
           /* Pipeline mode: show agent stages */
           <>
-            <span style={{ fontSize: 7, color: '#64b5f6', letterSpacing: '.1em', flexShrink: 0 }}>流水线</span>
+            <span style={{ fontSize: 9, color: '#9aabb8', letterSpacing: '.1em', flexShrink: 0 }}>流水线</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, overflowX: 'auto' }}>
               {ORDER.map((role, i) => {
                 const meta  = AGENT_META[role]

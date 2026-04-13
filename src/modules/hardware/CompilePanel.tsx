@@ -53,9 +53,9 @@ export function CompilePanel({ onCodeChange }: CompilePanelProps) {
           { key: 'schematic' as RightTab, label: '🔧 原理图' },
         ]).map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            style={{ ...MONO, flex: 1, padding: '7px 0', background: 'transparent', border: 'none',
-              cursor: 'pointer', fontSize: 8, fontWeight: 700, letterSpacing: '0.1em',
-              color: tab === t.key ? '#00ffcc' : '#5a7a9a',
+            style={{ ...MONO, flex: 1, padding: '8px 0', background: 'transparent', border: 'none',
+              cursor: 'pointer', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+              color: tab === t.key ? '#ffffff' : '#9aabb8',
               borderBottom: tab === t.key ? '2px solid #00ffcc' : '2px solid transparent',
               transition: 'all .2s', marginBottom: -1 }}>
             {t.label}
@@ -128,7 +128,7 @@ export function CompilePanel({ onCodeChange }: CompilePanelProps) {
           {/* Log stream */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '6px 12px', fontSize: 9, lineHeight: 1.65 }}>
             {logs.length === 0 && (
-              <div style={{ color: '#1a3a1a', textAlign: 'center', marginTop: 30, fontSize: 8, letterSpacing: '.15em' }}>
+              <div style={{ color: '#9aabb8', textAlign: 'center', marginTop: 30, fontSize: 10, letterSpacing: '.12em' }}>
                 {arduinoCode ? '等待编译...' : '等待 AI 生成代码...'}
               </div>
             )}
@@ -150,17 +150,17 @@ export function CompilePanel({ onCodeChange }: CompilePanelProps) {
       {tab === 'bom' && (
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
           {!schema ? (
-            <div style={{ color: '#3a5a7a', textAlign: 'center', marginTop: 40, fontSize: 9, letterSpacing: '.1em' }}>
+            <div style={{ color: '#9aabb8', textAlign: 'center', marginTop: 40, fontSize: 10, letterSpacing: '.1em' }}>
               等待生成项目...
             </div>
           ) : (
             <>
               {/* BOM Header */}
               <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 9, color: '#00ffcc', fontWeight: 700, letterSpacing: '.08em', marginBottom: 3 }}>
+                <div style={{ fontSize: 10, color: '#ffffff', fontWeight: 700, letterSpacing: '.08em', marginBottom: 3 }}>
                   📋 元件清单 ({bomRows.length} 项)
                 </div>
-                <div style={{ fontSize: 7, color: '#5a7a9a' }}>
+                <div style={{ fontSize: 8, color: '#9aabb8' }}>
                   {schema.meta.name} · 目标板: {schema.meta.targetBoard.toUpperCase()}
                 </div>
               </div>
@@ -169,8 +169,8 @@ export function CompilePanel({ onCodeChange }: CompilePanelProps) {
               <div style={{ background: '#0d1e33', border: '1px solid #2a4a6f', borderRadius: 6, overflow: 'hidden' }}>
                 {/* Header */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 70px 50px',
-                  padding: '5px 10px', background: '#162d4a', borderBottom: '1px solid #2a4a6f',
-                  fontSize: 7, color: '#64b5f6', fontWeight: 700, letterSpacing: '.08em' }}>
+                  padding: '6px 10px', background: '#162d4a', borderBottom: '1px solid #2a4a6f',
+                  fontSize: 8, color: '#ffffff', fontWeight: 700, letterSpacing: '.08em' }}>
                   <span>型号</span>
                   <span>标号</span>
                   <span>封装</span>
@@ -184,12 +184,12 @@ export function CompilePanel({ onCodeChange }: CompilePanelProps) {
                   return (
                     <div key={i} style={{
                       display: 'grid', gridTemplateColumns: '1fr 60px 70px 50px',
-                      padding: '4px 10px', borderBottom: i < bomRows.length - 1 ? '1px solid #1e3a5f' : 'none',
-                      fontSize: 8, color: '#c0d0e0',
+                      padding: '5px 10px', borderBottom: i < bomRows.length - 1 ? '1px solid #1e3a5f' : 'none',
+                      fontSize: 9, color: '#e0e0e0',
                     }}>
                       <span style={{ color: '#00ff9d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{model}</span>
-                      <span style={{ color: '#64b5f6', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
-                      <span style={{ color: '#5a7a9a', fontSize: 7 }}>{footprint}</span>
+                      <span style={{ color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+                      <span style={{ color: '#9aabb8', fontSize: 8 }}>{footprint}</span>
                       <span style={{ textAlign: 'right', color: '#fb923c', fontWeight: 700 }}>{qty}</span>
                     </div>
                   )
@@ -198,22 +198,22 @@ export function CompilePanel({ onCodeChange }: CompilePanelProps) {
 
               {/* Components detail */}
               <div style={{ marginTop: 12 }}>
-                <div style={{ fontSize: 8, color: '#64b5f6', fontWeight: 700, letterSpacing: '.08em', marginBottom: 6 }}>◈ 元器件详情</div>
+                <div style={{ fontSize: 9, color: '#ffffff', fontWeight: 700, letterSpacing: '.08em', marginBottom: 6 }}>◈ 元器件详情</div>
                 {schema.components.map(comp => (
                   <div key={comp.id} style={{
                     background: '#0d1e33', border: '1px solid #2a4a6f', borderRadius: 5,
-                    padding: '5px 8px', marginBottom: 5,
+                    padding: '6px 9px', marginBottom: 5,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                      <span style={{ fontSize: 8, color: '#00ffcc', fontWeight: 700 }}>{comp.label}</span>
-                      <span style={{ fontSize: 7, color: '#5a7a9a' }}>{comp.model}</span>
-                      <span style={{ marginLeft: 'auto', fontSize: 6, color: '#64b5f6', background: '#0f2744',
+                      <span style={{ fontSize: 9, color: '#00ffcc', fontWeight: 700 }}>{comp.label}</span>
+                      <span style={{ fontSize: 8, color: '#9aabb8' }}>{comp.model}</span>
+                      <span style={{ marginLeft: 'auto', fontSize: 7, color: '#64b5f6', background: '#0f2744',
                         padding: '1px 5px', borderRadius: 3, border: '1px solid #2a4a6f' }}>
                         {comp.type.toUpperCase()}
                       </span>
                     </div>
                     {comp.pins.length > 0 && (
-                      <div style={{ fontSize: 7, color: '#3a5a7a', lineHeight: 1.7 }}>
+                      <div style={{ fontSize: 8, color: '#9aabb8', lineHeight: 1.7 }}>
                         引脚: {comp.pins.map(p => `${p.name}${p.gpioNum !== undefined ? `(GPIO${p.gpioNum})` : ''}`).join(' · ')}
                       </div>
                     )}
@@ -229,21 +229,21 @@ export function CompilePanel({ onCodeChange }: CompilePanelProps) {
       {tab === 'schematic' && (
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
           {!schema ? (
-            <div style={{ color: '#3a5a7a', textAlign: 'center', marginTop: 40, fontSize: 9, letterSpacing: '.1em' }}>
+            <div style={{ color: '#9aabb8', textAlign: 'center', marginTop: 40, fontSize: 10, letterSpacing: '.1em' }}>
               等待生成项目...
             </div>
           ) : (
             <>
               {/* Pin connections summary */}
               <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 9, color: '#00ffcc', fontWeight: 700, letterSpacing: '.08em', marginBottom: 3 }}>
+                <div style={{ fontSize: 10, color: '#ffffff', fontWeight: 700, letterSpacing: '.08em', marginBottom: 3 }}>
                   🔌 引脚连接表 ({connections.length} 条)
                 </div>
                 <div style={{ background: '#0d1e33', border: '1px solid #2a4a6f', borderRadius: 6, overflow: 'hidden' }}>
                   {/* Header */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 50px',
-                    padding: '5px 10px', background: '#162d4a', borderBottom: '1px solid #2a4a6f',
-                    fontSize: 7, color: '#64b5f6', fontWeight: 700, letterSpacing: '.08em' }}>
+                    padding: '6px 10px', background: '#162d4a', borderBottom: '1px solid #2a4a6f',
+                    fontSize: 8, color: '#ffffff', fontWeight: 700, letterSpacing: '.08em' }}>
                     <span>源引脚</span>
                     <span>目标引脚</span>
                     <span style={{ textAlign: 'right' }}>颜色</span>
@@ -256,15 +256,15 @@ export function CompilePanel({ onCodeChange }: CompilePanelProps) {
                     return (
                       <div key={i} style={{
                         display: 'grid', gridTemplateColumns: '1fr 1fr 50px',
-                        padding: '4px 10px', borderBottom: i < connections.length - 1 ? '1px solid #1e3a5f' : 'none',
-                        fontSize: 8, color: '#c0d0e0', alignItems: 'center',
+                        padding: '5px 10px', borderBottom: i < connections.length - 1 ? '1px solid #1e3a5f' : 'none',
+                        fontSize: 9, color: '#e0e0e0', alignItems: 'center',
                       }}>
                         <span>
-                          <span style={{ color: '#64b5f6' }}>{src?.label ?? conn.source.componentId}</span>
+                          <span style={{ color: '#ffffff' }}>{src?.label ?? conn.source.componentId}</span>
                           <span style={{ color: '#00ff9d' }}>:{conn.source.pinName}</span>
                         </span>
                         <span>
-                          <span style={{ color: '#64b5f6' }}>{tgt?.label ?? conn.target.componentId}</span>
+                          <span style={{ color: '#ffffff' }}>{tgt?.label ?? conn.target.componentId}</span>
                           <span style={{ color: '#fb923c' }}>:{conn.target.pinName}</span>
                         </span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
@@ -278,11 +278,11 @@ export function CompilePanel({ onCodeChange }: CompilePanelProps) {
 
               {/* KiCad export hint */}
               <div style={{ background: '#0d1e33', border: '1px solid #2a4a6f', borderRadius: 6, padding: '10px' }}>
-                <div style={{ fontSize: 8, color: '#64b5f6', fontWeight: 700, letterSpacing: '.08em', marginBottom: 5 }}>🔧 KiCad 原理图</div>
-                <div style={{ fontSize: 7, color: '#5a7a9a', lineHeight: 1.7, marginBottom: 6 }}>
+                <div style={{ fontSize: 9, color: '#ffffff', fontWeight: 700, letterSpacing: '.08em', marginBottom: 5 }}>🔧 KiCad 原理图</div>
+                <div style={{ fontSize: 8, color: '#9aabb8', lineHeight: 1.7, marginBottom: 6 }}>
                   可导出 KiCad 原理图 (.kicad_sch) 格式，在嘉立创 JLCPCB 直接下单使用。
                 </div>
-                <div style={{ fontSize: 7, color: '#3a5a7a', lineHeight: 1.6 }}>
+                <div style={{ fontSize: 8, color: '#9aabb8', lineHeight: 1.6 }}>
                   路径：标题栏 → 📤导出 → KiCad 原理图 (SCH)
                 </div>
               </div>
