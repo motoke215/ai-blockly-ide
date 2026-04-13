@@ -142,7 +142,8 @@ export const useAppStore = create<AppState & AppActions>()(
     })
 
     bus.on('pipeline:done', ({ schema }) => {
-      const normalizedSchema = ensureSchemaShape(normalizeConnections(schema))
+      // schema 已在 agent-runner.ts 中经过 normalizeConnections 处理，无需重复规范化
+      const normalizedSchema = ensureSchemaShape(schema)
       const entry: Omit<HistoryEntry, 'id'> = {
         name: normalizedSchema.meta.name,
         description: normalizedSchema.meta.description,
