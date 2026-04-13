@@ -1,6 +1,6 @@
 // src/modules/wiring/BreadboardCanvas.tsx
-// SVG breadboard visualization: physical pin layout + breadboard tracks + colored wires
-import React, { useEffect, useRef, useCallback } from 'react'
+// SVG breadboard visualization with pan (drag) and zoom (wheel)
+import React, { useEffect, useRef, useCallback, useState } from 'react'
 import { useAppStore } from '../../store/app.store'
 import { buildBreadboardLayout, type BreadboardLayout, type BreadboardElement } from './breadboard-layout'
 import type { AIProjectSchema } from '../../shared/types/project.schema'
@@ -31,7 +31,6 @@ function wirePath(points: [number,number][]): string {
 function renderEl(el: BreadboardElement, idx: number): React.ReactNode {
   const k = el.kind
 
-  // chip
   if (k === 'chip') {
     const e = el as any
     const typeColor = TYPE_COLORS[e.type] ?? '#00ff9d'
@@ -70,7 +69,6 @@ function renderEl(el: BreadboardElement, idx: number): React.ReactNode {
     )
   }
 
-  // pin-dot
   if (k === 'pin-dot') {
     const e = el as any
     if (!e.pinName) {
@@ -96,7 +94,6 @@ function renderEl(el: BreadboardElement, idx: number): React.ReactNode {
     )
   }
 
-  // wire
   if (k === 'wire') {
     const e = el as any
     const d = wirePath(e.points)
@@ -123,7 +120,6 @@ function renderEl(el: BreadboardElement, idx: number): React.ReactNode {
     )
   }
 
-  // track-h
   if (k === 'track-h') {
     const e = el as any
     return (
@@ -143,13 +139,27 @@ export function BreadboardCanvas({ schema }: BreadboardCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [layout, setLayout] = React.useState<BreadboardLayout | null>(null)
-  const [scale, setScale] = React.useState(1)
-  const [offset, setOffset] = React.useState({ x: 0, y: 0 })
+  const [scale, setScale] = useState(1)
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  // Pan state
+  const dragging = useRef(false)
+  const dragStart = useRef({ x: 0, y: 0, offX: 0, offY: 0 })
   const registerBBCanvas = useAppStore(s => (s as any).registerBBCanvas)
 
   useEffect(() => {
     if (!schema) { setLayout(null); return }
-    setLayout(buildBreadboardLayout(schema))
+    const l = buildBreadboardLayout(schema)
+    setLayout(l)
+    // Auto-fit on schema change
+    if (containerRef.current) {
+      const cw = containerRef.current.clientWidth
+      const ch = containerRef.current.clientHeight
+      const sX = (cw - 40) / l.viewWidth
+      const sY = (ch - 40) / l.viewHeight
+      const s = Math.min(sX, sY, 1)
+      setScale(s)
+      setOffset({ x: (cw - l.viewWidth * s) / 2, y: (ch - l.viewHeight * s) / 2 })
+    }
   }, [schema])
 
   useEffect(() => {
@@ -157,7 +167,35 @@ export function BreadboardCanvas({ schema }: BreadboardCanvasProps) {
     registerBBCanvas?.(svgRef.current)
   }, [layout, registerBBCanvas])
 
-  useEffect(() => {
+  // ── Pan ────────────────────────────────────────────────────────────────
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    dragging.current = true;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    dragStart.current = { x: e.clientX, y: e.clientY, offX: offset.x, offY: offset.y }
+  }, [offset])
+
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragging.current) return
+    setOffset({
+      x: dragStart.current.offX + (e.clientX - dragStart.current.x),
+      y: dragStart.current.offY + (e.clientY - dragStart.current.y),
+    })
+  }, [])
+
+  const onPointerUp = useCallback(() => {
+    dragging.current = false
+  }, [])
+
+  // ── Zoom ───────────────────────────────────────────────────────────────
+  const onWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? 0.9 : 1.1
+    setScale(s => Math.max(0.1, Math.min(4, s * delta)))
+  }, [])
+
+  // ── Reset view ───────────────────────────────────────────────────────
+  const resetView = useCallback(() => {
     if (!layout || !containerRef.current) return
     const cw = containerRef.current.clientWidth
     const ch = containerRef.current.clientHeight
@@ -165,10 +203,7 @@ export function BreadboardCanvas({ schema }: BreadboardCanvasProps) {
     const sY = (ch - 40) / layout.viewHeight
     const s = Math.min(sX, sY, 1)
     setScale(s)
-    setOffset({
-      x: (cw - layout.viewWidth * s) / 2,
-      y: (ch - layout.viewHeight * s) / 2,
-    })
+    setOffset({ x: (cw - layout.viewWidth * s) / 2, y: (ch - layout.viewHeight * s) / 2 })
   }, [layout])
 
   const handleExportPNG = useCallback(async () => {
@@ -224,7 +259,6 @@ export function BreadboardCanvas({ schema }: BreadboardCanvasProps) {
         width: '100%', height: '100%', background: '#0f2744',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
       }}>
-        <div style={{ fontSize: 32, opacity: 0.1 }}>*</div>
         <div style={{ fontSize: 10, color: '#ffffff', letterSpacing: '.18em', fontFamily: 'monospace' }}>
           面包板视图
         </div>
@@ -238,7 +272,15 @@ export function BreadboardCanvas({ schema }: BreadboardCanvasProps) {
   if (!layout) return null
 
   return (
-    <div ref={containerRef} style={{ width: '100%', height: '100%', background: '#0f2744', overflow: 'hidden', position: 'relative' }}>
+    <div
+      ref={containerRef}
+      style={{ width: '100%', height: '100%', background: '#0f2744', overflow: 'hidden', position: 'relative', cursor: dragging.current ? 'grabbing' : 'grab' }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onWheel={onWheel}
+    >
+      {/* Top-left info */}
       <div style={{
         position: 'absolute', top: 8, left: 12, zIndex: 10,
         fontFamily: '"JetBrains Mono",monospace', fontSize: 8,
@@ -249,25 +291,38 @@ export function BreadboardCanvas({ schema }: BreadboardCanvasProps) {
         面包板视图 | {schema.components.length} 芯片 | {schema.connections.length} 连线
       </div>
 
-      <button onClick={handleExportPNG} style={{
-        position: 'absolute', top: 8, right: 12, zIndex: 10,
-        fontFamily: '"JetBrains Mono",monospace', fontSize: 7, fontWeight: 700,
-        letterSpacing: '.08em', padding: '3px 8px', borderRadius: 4,
-        cursor: 'pointer', border: '1px solid #00ff9d40', color: '#00ff9d',
-        background: '#0a2a1a', transition: 'all .15s',
-      }}
-        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#00ff9d20' }}
-        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#0a2a1a' }}>
-        导出 PNG
-      </button>
+      {/* Zoom controls */}
+      <div style={{ position: 'absolute', top: 8, right: 12, zIndex: 10, display: 'flex', gap: 4 }}>
+        <button onClick={resetView} style={{
+          fontFamily: '"JetBrains Mono",monospace', fontSize: 7, fontWeight: 700,
+          letterSpacing: '.06em', padding: '3px 8px', borderRadius: 4,
+          cursor: 'pointer', border: '1px solid #2a4a6f', color: '#9aabb8',
+          background: '#0a1628', transition: 'all .15s',
+        }}>重置视图</button>
+        <button onClick={handleExportPNG} style={{
+          fontFamily: '"JetBrains Mono",monospace', fontSize: 7, fontWeight: 700,
+          letterSpacing: '.08em', padding: '3px 8px', borderRadius: 4,
+          cursor: 'pointer', border: '1px solid #00ff9d40', color: '#00ff9d',
+          background: '#0a2a1a', transition: 'all .15s',
+        }}>导出 PNG</button>
+      </div>
+
+      {/* Scale indicator */}
+      <div style={{
+        position: 'absolute', bottom: 10, right: 14, zIndex: 10,
+        fontFamily: '"JetBrains Mono",monospace', fontSize: 7,
+        color: '#3a5a7a', letterSpacing: '.06em',
+      }}>
+        {Math.round(scale * 100)}%
+      </div>
 
       <div style={{
-        position: 'absolute', inset: 0,
-        backgroundImage: 'radial-gradient(circle, #1e3a5f 1px, transparent 1px)',
-        backgroundSize: `${COL * scale}px ${ROW * scale}px`,
-        backgroundPosition: `${offset.x}px ${offset.y}px`,
-        opacity: 0.4,
-      }} />
+        position: 'absolute', bottom: 10, left: 14, zIndex: 10,
+        fontFamily: '"JetBrains Mono",monospace', fontSize: 7,
+        color: '#3a5a7a', letterSpacing: '.06em',
+      }}>
+        拖动平移 · 滚轮缩放
+      </div>
 
       <svg
         ref={svgRef}
@@ -278,9 +333,9 @@ export function BreadboardCanvas({ schema }: BreadboardCanvasProps) {
           position: 'absolute', top: 0, left: 0,
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
           transformOrigin: '0 0',
+          pointerEvents: 'none',
         }}
       >
-        {/* Power rails */}
         <g>
           <rect x={COL} y={0} width={COL * 2.5} height={layout.viewHeight}
             fill="#ef444408" />
@@ -296,7 +351,6 @@ export function BreadboardCanvas({ schema }: BreadboardCanvasProps) {
             fontSize={6} fontFamily='"JetBrains Mono",monospace"' fontWeight={700}>-</text>
         </g>
 
-        {/* Main area */}
         <rect x={COL * 5} y={0} width={layout.viewWidth} height={layout.viewHeight}
           fill="#0d1e33" opacity={0.3} />
 

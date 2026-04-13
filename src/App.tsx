@@ -92,6 +92,7 @@ import { runPipelineWithGuard } from './modules/ai-chat/agent-runner';
 import { ChatPanel }            from './modules/ai-chat/ChatPanel';
 import { WiringCanvas }         from './modules/wiring/WiringCanvas';
 import { BreadboardCanvas }    from './modules/wiring/BreadboardCanvas';
+import { PinConnectionCanvas }  from './modules/wiring/PinConnectionCanvas';
 import { CompilePanel }         from './modules/hardware/CompilePanel';
 import type { ActiveModelConfig } from './shared/llm-providers';
 import { PROVIDER_MAP }           from './shared/llm-providers';
@@ -353,7 +354,7 @@ function ResizeHandle({ onDrag }: { onDrag: (dx: number) => void }) {
 export function MainLayout({ onOpenSettings, activeConfig, update, onDownloadUpdate, onInstallUpdate }: MainLayoutProps) {
   const [chatW,    setChatW]    = React.useState(340);
   const [compileW, setCompileW] = React.useState(360);
-  const [canvasTab, setCanvasTab] = React.useState<'wiring'|'breadboard'>('wiring');
+  const [canvasTab, setCanvasTab] = React.useState<'wiring'|'breadboard'|'pin'>('wiring');
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const { registerWireSweep } = useAppStore(s => ({ registerWireSweep: s.registerWireSweep }));
@@ -406,6 +407,7 @@ export function MainLayout({ onOpenSettings, activeConfig, update, onDownloadUpd
             {([
               { key: 'wiring' as const, label: '🔗 布线图' },
               { key: 'breadboard' as const, label: '🔧 面包板' },
+              { key: 'pin' as const, label: '🔌 引脚连接图' },
             ]).map(t => (
               <button key={t.key} onClick={() => setCanvasTab(t.key)}
                 style={{ ...mono, flex: 1, padding: '5px 0', background: 'transparent', border: 'none',
@@ -423,8 +425,10 @@ export function MainLayout({ onOpenSettings, activeConfig, update, onDownloadUpd
             {canvasTab === 'wiring' ? (
               <WiringCanvas nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
                 onNodeDragStop={(id, pos) => bus.emit('canvas:node-moved', { componentId: id, position: pos })} />
-            ) : (
+            ) : canvasTab === 'breadboard' ? (
               <BreadboardCanvas schema={schema} />
+            ) : (
+              <PinConnectionCanvas schema={schema} />
             )}
           </div>
         </div>
