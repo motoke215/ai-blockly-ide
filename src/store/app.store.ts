@@ -29,10 +29,17 @@ export interface AppState {
   lastUploadOk:    boolean | null
   selectedPort:    string
   _wireSweep:      (() => void) | null
+  _canvas: {
+    fitView: () => void
+    toPng: (opts?: any) => Promise<string>
+  } | null
+  _bbCanvas: SVGSVGElement | null
 }
 
 export interface AppActions {
   registerWireSweep: (fn: () => void) => void
+  registerCanvas:    (canvas: { fitView: () => void; toPng: (opts?: any) => Promise<string> }) => void
+  registerBBCanvas:  (el: SVGSVGElement) => void
   setSelectedPort:   (port: string) => void
   clearLogs:         () => void
   resetPipeline:     () => void
@@ -60,7 +67,6 @@ export const useAppStore = create<AppState & AppActions>()(
 
     bus.on('agent:done', ({ role, durationMs }) => {
       set(s => { s.agents[role].status = 'done'; s.agents[role].durationMs = durationMs })
-      // Architect done → trigger wire sweep
       if (role === 'architect') {
         setTimeout(() => { get()._wireSweep?.() }, 80)
       }
@@ -84,7 +90,6 @@ export const useAppStore = create<AppState & AppActions>()(
       set(s => {
         s.schema = schema; s.pipelineRunning = false
         s.sketchName = schema.meta.name.replace(/\s+/g, '_')
-        // Convert schema to ReactFlow nodes & edges
         const { nodes, edges } = schemaToFlow(schema)
         s.nodes = nodes; s.edges = edges
       })
@@ -141,8 +146,12 @@ export const useAppStore = create<AppState & AppActions>()(
       compileLogs: [], compileRunning: false,
       lastCompileOk: null, lastUploadOk: null, selectedPort: '',
       _wireSweep: null,
+      _canvas: null,
+      _bbCanvas: null,
 
       registerWireSweep: (fn) => set(s => { s._wireSweep = fn }),
+      registerCanvas: (canvas) => set(s => { s._canvas = canvas }),
+      registerBBCanvas: (el) => set(s => { s._bbCanvas = el }),
       setSelectedPort:   (p)  => set(s => { s.selectedPort = p }),
       clearLogs:         ()   => set(s => { s.compileLogs = [] }),
       resetPipeline:     ()   => set(s => {

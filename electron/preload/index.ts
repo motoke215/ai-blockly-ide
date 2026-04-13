@@ -30,6 +30,13 @@ const IPC = {
   SERIAL_DATA: 'serial:data',
 } as const
 
+const FILE_IPC = {
+  SHOW_OPEN_DIALOG: 'file:show-open-dialog',
+  SHOW_SAVE_DIALOG: 'file:show-save-dialog',
+  READ_FILE:        'file:read-file',
+  WRITE_FILE:       'file:write-file',
+} as const
+
 // ── Store API (key persistence) ─────────────────────────────────────────────────
 const storeAPI = {
   getKeys: () => ipcRenderer.invoke(STORE_IPC.GET_KEYS),
@@ -68,6 +75,15 @@ const hardwareAPI = {
 
 contextBridge.exposeInMainWorld('store', storeAPI)
 contextBridge.exposeInMainWorld('hardware', hardwareAPI)
+
+// ── File API ─────────────────────────────────────────────────────────────────
+const fileAPI = {
+  showOpenDialog: (opts: any) => ipcRenderer.invoke(FILE_IPC.SHOW_OPEN_DIALOG, opts),
+  showSaveDialog: (opts: any) => ipcRenderer.invoke(FILE_IPC.SHOW_SAVE_DIALOG, opts),
+  readFile:       (path: string) => ipcRenderer.invoke(FILE_IPC.READ_FILE, path),
+  writeFile:      (path: string, content: string) => ipcRenderer.invoke(FILE_IPC.WRITE_FILE, path, content),
+}
+contextBridge.exposeInMainWorld('file', fileAPI)
 
 // ── Updater API ────────────────────────────────────────────────────────────────
 const updaterAPI = {

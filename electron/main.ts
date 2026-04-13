@@ -4,6 +4,7 @@ import { join }                       from 'path';
 import { storeAPI }                   from './store/key-store';
 import { registerStoreHandlers }      from './ipc-handlers/store-handler';
 import { registerHardwareHandlers }   from './ipc-handlers/hardware-handler';
+import { registerFileHandlers }       from './ipc-handlers/file-handler';
 import { buildMenu }                  from './menu';
 import { setupUpdater }               from './updater';
 
@@ -57,6 +58,7 @@ app.whenReady().then(() => {
   const win = createWindow();
   Menu.setApplicationMenu(buildMenu(win));
   registerHardwareHandlers(win);
+  registerFileHandlers(win);
   setupUpdater(win);
 
   app.on('activate', () => {

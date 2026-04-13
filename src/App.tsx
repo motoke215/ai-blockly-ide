@@ -1,9 +1,9 @@
 // src/App.tsx
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ReactFlowProvider } from 'reactflow';
-import { MainLayout }        from './layouts/MainLayout';
 import { ModelSettings }     from './modules/settings/ModelSettings';
 import { useModelConfig }    from './modules/settings/useModelConfig';
+import { FileMenuDropdown }  from './modules/file/FileMenuDropdown';
 import 'reactflow/dist/style.css';
 import './store/app.store';   // trigger bus subscriptions
 
@@ -31,7 +31,6 @@ export default function App() {
   const { cfg, activeConfig }           = useModelConfig();
   const [update, setUpdate] = useState<UpdateStatus>({ state: 'idle' })
 
-  // ── Updater subscription ──────────────────────────────────────────────
   useEffect(() => {
     if (!window.updater) return
     const unsub = window.updater.onStatus(({ status, data }) => {
@@ -44,7 +43,6 @@ export default function App() {
         case 'error':          setUpdate({ state: 'error', message: data.message }); break
       }
     })
-    // 启动时主动检查
     window.updater.check().catch(() => {})
     return unsub
   }, [])
@@ -59,7 +57,6 @@ export default function App() {
 
   return (
     <ReactFlowProvider>
-      {/* Settings modal */}
       {settingsOpen && <ModelSettings onClose={() => setSettingsOpen(false)} />}
 
       <MainLayout
@@ -78,7 +75,7 @@ export default function App() {
 // src/layouts/MainLayout.tsx  — complete with settings button + model badge
 // ══════════════════════════════════════════════════════════════════════
 
-import React, { useEffect, useCallback, useRef } from 'react';
+import { useRef } from 'react';
 import { useNodesState, useEdgesState }           from 'reactflow';
 import { useAppStore }          from './store/app.store';
 import { bus }                  from './shared/event-bus';
@@ -86,6 +83,7 @@ import { createWireSweeper }    from './modules/wiring/wire-animator';
 import { runPipelineWithGuard } from './modules/ai-chat/agent-runner';
 import { ChatPanel }            from './modules/ai-chat/ChatPanel';
 import { WiringCanvas }         from './modules/wiring/WiringCanvas';
+import { BreadboardCanvas }    from './modules/wiring/BreadboardCanvas';
 import { CompilePanel }         from './modules/hardware/CompilePanel';
 import type { ActiveModelConfig } from './shared/llm-providers';
 import { PROVIDER_MAP }           from './shared/llm-providers';
@@ -164,6 +162,8 @@ function Titlebar({ onOpenSettings, activeConfig, update, onDownloadUpdate, onIn
           </div>
         )}
 
+        <FileMenuDropdown />
+
         {/* Settings button */}
         <button
           onClick={onOpenSettings}
@@ -228,11 +228,13 @@ function ResizeHandle({ onDrag }: { onDrag: (dx: number) => void }) {
 
 // ── MainLayout ────────────────────────────────────────────────────────────────
 export function MainLayout({ onOpenSettings, activeConfig, update, onDownloadUpdate, onInstallUpdate }: MainLayoutProps) {
-  const [chatW,    setChatW]    = React.useState(380);
+  const [chatW,    setChatW]    = React.useState(340);
   const [compileW, setCompileW] = React.useState(360);
+  const [canvasTab, setCanvasTab] = React.useState<'wiring'|'breadboard'>('wiring');
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const { registerWireSweep } = useAppStore(s => ({ registerWireSweep: s.registerWireSweep }));
+  const schema = useAppStore(s => s.schema);
 
   useEffect(() => {
     registerWireSweep(createWireSweeper(setEdges, { sweepDurationMs: 700, staggerMs: 65 }));
@@ -274,9 +276,34 @@ export function MainLayout({ onOpenSettings, activeConfig, update, onDownloadUpd
           <ChatPanel onSubmit={handleSubmit} />
         </div>
         <ResizeHandle onDrag={dx => setChatW(w => Math.max(280, Math.min(520, w + dx)))} />
-        <div style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
-          <WiringCanvas nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
-            onNodeDragStop={(id, pos) => bus.emit('canvas:node-moved', { componentId: id, position: pos })} />
+        <div style={{ flex: 1, overflow: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+
+          {/* Canvas tab switcher */}
+          <div style={{ display: 'flex', borderBottom: '1px solid #1e3a5f', flexShrink: 0, background: '#0a1628' }}>
+            {([
+              { key: 'wiring' as const, label: '🔗 布线图' },
+              { key: 'breadboard' as const, label: '🔧 面包板' },
+            ]).map(t => (
+              <button key={t.key} onClick={() => setCanvasTab(t.key)}
+                style={{ ...mono, flex: 1, padding: '5px 0', background: 'transparent', border: 'none',
+                  cursor: 'pointer', fontSize: 7.5, fontWeight: 700, letterSpacing: '0.1em',
+                  color: canvasTab === t.key ? '#00ffcc' : '#5a7a9a',
+                  borderBottom: canvasTab === t.key ? '2px solid #00ffcc' : '2px solid transparent',
+                  transition: 'all .2s', marginBottom: -1 }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Canvas content */}
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            {canvasTab === 'wiring' ? (
+              <WiringCanvas nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+                onNodeDragStop={(id, pos) => bus.emit('canvas:node-moved', { componentId: id, position: pos })} />
+            ) : (
+              <BreadboardCanvas schema={schema} />
+            )}
+          </div>
         </div>
         <ResizeHandle onDrag={dx => setCompileW(w => Math.max(280, Math.min(520, w - dx)))} />
         <div style={{ width: compileW, flexShrink: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>

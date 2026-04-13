@@ -1,8 +1,10 @@
 // src/modules/wiring/WiringCanvas.tsx
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect } from 'react'
 import ReactFlow, { Background, BackgroundVariant, Controls, MiniMap, Panel,
-  type NodeTypes, type NodeChange, type EdgeChange, type Node, type Edge } from 'reactflow'
+  type NodeTypes, type NodeChange, type EdgeChange, type Node, type Edge,
+  useReactFlow } from 'reactflow'
 import { ChipNode } from './nodes/ChipNode'
+import { useAppStore } from '../../store/app.store'
 import 'reactflow/dist/style.css'
 
 const NODE_TYPES: NodeTypes = { chipNode: ChipNode }
@@ -15,7 +17,16 @@ interface WiringCanvasProps {
   onNodeDragStop?:  (id: string, pos: { x: number; y: number }) => void
 }
 
-export function WiringCanvas({ nodes, edges, onNodesChange, onEdgesChange, onNodeDragStop }: WiringCanvasProps) {
+// Inner component that has access to useReactFlow
+function WiringCanvasInner({ nodes, edges, onNodesChange, onEdgesChange, onNodeDragStop }: WiringCanvasProps) {
+  const { fitView, toPng } = useReactFlow()
+  const registerCanvas = useAppStore(s => (s as any).registerCanvas)
+
+  // Expose fitView and toPng to the store so FilePanel can use them
+  useEffect(() => {
+    registerCanvas?.({ fitView, toPng })
+  }, [fitView, toPng, registerCanvas])
+
   const handleDragStop = useCallback((_: React.MouseEvent, node: Node) => {
     onNodeDragStop?.(node.id, node.position)
   }, [onNodeDragStop])
@@ -59,4 +70,8 @@ export function WiringCanvas({ nodes, edges, onNodesChange, onEdgesChange, onNod
       </ReactFlow>
     </div>
   )
+}
+
+export function WiringCanvas(props: WiringCanvasProps) {
+  return <WiringCanvasInner {...props} />
 }
